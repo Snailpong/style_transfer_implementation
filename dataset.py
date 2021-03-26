@@ -6,7 +6,11 @@ import numpy as np
 
 class CycleGANDataset(DataLoader):
     def __init__(self, dataset_dir):
-        pass
+        self.transform = transforms.Compose([
+            transforms.Scale((256, 256)),
+            transforms.toTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+            ])
 
     def __getitem__(self, index):
         pass

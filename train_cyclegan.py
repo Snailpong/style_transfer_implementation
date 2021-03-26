@@ -32,11 +32,14 @@ def train(dataset_dir):
     os.makedirs('./model', exist_ok=True)
 
     f = CycleGANGenerator().to(device)
-    dx = CycleGANDiscriminator().to(device)
     g = CycleGANGenerator().to(device)
+    dx = CycleGANDiscriminator().to(device)
     dy = CycleGANDiscriminator().to(device)
 
-    optimizer = optim.Adam(list(f) + list(g) + list(dx) + list(dy), lr=0.0002)
+    fg_optimizer = optim.Adam(list(f) + list(g), lr=0.0002)
+    dx_optimizer = optim.Adam(dx.parameters, lr=0.0002)
+    dy_optimizer = optim.Adam(dy.parameters, lr=0.0002)
+    
     mae_criterion = nn.L1Loss()
     mse_criterion = nn.MSELoss()
 
@@ -53,19 +56,37 @@ def train(dataset_dir):
             x_images = x_images.to(device, dtype=torch.float32)
             y_images = y_images.to(device, dtype=torch.float32)
 
-            optimizer.zero_grad()
+            gx = g(x_images)
+            fy = f(y_images)
+            fgx = f(gx)
+            gfy = g(fy)
 
-            fgx = f(g(x_images))
-            gfy = g(f(y_images))
-            dfgx = dx(fgx)
-            dgfy = dy(gfy)
+            dxx = dx(x_images)
+            dyy = dy(y_images)
+            dxfy = dx(fy)
+            dygx = dy(gx)
 
-            loss = ...
+            fg_optimizer.zero_grad()
 
-            loss.backward()
-            optimizer.step()
+            loss_cyc = mae_criterion(fgx - x_images) + mae_criterion(gfy - y_images)
+            loss_gg = mse_criterion(dygx - torch.ones_like(dygx))
+            loss_fg = mse_criterion(dgx - torch.ones_like(dgx))
+            fg_loss = loss_cyc + loss_gg + loss_fg
 
-            total_loss += loss.detach().cpu().numpy()
+            fg_loss.backward()
+            fg_optimizer.step()
+
+            dx_optimizer.zero_grad()
+            dx_loss = mse_criterion(dxx - torch.ones_like(dxx)) + mse_criterion(dxfy)
+            dx_loss.backward()
+            dx_optimizer.step()
+
+            dy_optimizer.zero_grad()
+            dy_loss = mse_criterion(dyy - torch.ones_like(dyy)) + mse_criterion(dygx)
+            dy_loss.backward()
+            dy_optimizer.step()
+
+            total_loss += fg_loss.detach().cpu().numpy() + dx_loss.detach().cpu().numpy() + dy_loss.detach().cpu().numpy()
             pbar.set_postfix_str('loss: ' + str(np.around(total_loss / (idx + 1), 4)))
             pbar.update()
 
