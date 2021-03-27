@@ -4,7 +4,7 @@ import torch
 import random
 
 from torch import nn, optim
-from torch.uitls.data import DataLoader
+from torch.utils.data import DataLoader
 
 from tqdm import tqdm
 import numpy as np
@@ -20,6 +20,7 @@ BATCH_SIZE = 1
 def train(dataset_dir):
     os.environ['CUDA_VISIBLE_DEVICES'] = '0'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    torch.autograd.set_detect_anomaly(True)
     print('Device: {}'.format(device))
 
     torch.manual_seed(1234)
@@ -36,9 +37,9 @@ def train(dataset_dir):
     dx = CycleGANDiscriminator().to(device)
     dy = CycleGANDiscriminator().to(device)
 
-    fg_optimizer = optim.Adam(list(f) + list(g), lr=0.0002)
-    dx_optimizer = optim.Adam(dx.parameters, lr=0.0002)
-    dy_optimizer = optim.Adam(dy.parameters, lr=0.0002)
+    fg_optimizer = optim.Adam(list(f.parameters()) + list(g.parameters()), lr=0.0002)
+    dx_optimizer = optim.Adam(dx.parameters(), lr=0.0002)
+    dy_optimizer = optim.Adam(dy.parameters(), lr=0.0002)
     
     mae_criterion = nn.L1Loss()
     mse_criterion = nn.MSELoss()
@@ -68,21 +69,21 @@ def train(dataset_dir):
 
             fg_optimizer.zero_grad()
 
-            loss_cyc = mae_criterion(fgx - x_images) + mae_criterion(gfy - y_images)
-            loss_gg = mse_criterion(dygx - torch.ones_like(dygx))
-            loss_fg = mse_criterion(dgx - torch.ones_like(dgx))
+            loss_cyc = mae_criterion(fgx, x_images) + mae_criterion(gfy, y_images)
+            loss_gg = mse_criterion(dygx, torch.ones_like(dygx))
+            loss_fg = mse_criterion(dxfy, torch.ones_like(dxfy))
             fg_loss = loss_cyc + loss_gg + loss_fg
 
-            fg_loss.backward()
+            fg_loss.backward(retain_graph=True)
             fg_optimizer.step()
 
             dx_optimizer.zero_grad()
-            dx_loss = mse_criterion(dxx - torch.ones_like(dxx)) + mse_criterion(dxfy)
+            dx_loss = mse_criterion(dxx, torch.ones_like(dxx)) + mse_criterion(dxfy, torch.zeros_like(dxfy))
             dx_loss.backward()
             dx_optimizer.step()
 
             dy_optimizer.zero_grad()
-            dy_loss = mse_criterion(dyy - torch.ones_like(dyy)) + mse_criterion(dygx)
+            dy_loss = mse_criterion(dyy, torch.ones_like(dyy)) + mse_criterion(dygx, torch.zeros_like(dygx))
             dy_loss.backward()
             dy_optimizer.step()
 
