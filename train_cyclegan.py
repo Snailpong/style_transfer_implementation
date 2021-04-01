@@ -52,38 +52,47 @@ def train(dataset_dir):
 
         pbar = tqdm(range(len(dataloader)))
         pbar.set_description('Epoch {}'.format(epoch+1))
+        total_loss = .0
 
         for idx, (x_images, y_images) in enumerate(dataloader):
-            x_images = x_images.to(device, dtype=torch.float32)
-            y_images = y_images.to(device, dtype=torch.float32)
+            real_x = x_images.to(device, dtype=torch.float32)
+            real_y = y_images.to(device, dtype=torch.float32)
 
-            gx = g(x_images)
-            fy = f(y_images)
-            fgx = f(gx)
-            gfy = g(fy)
+            fake_y = g(x_images)
+            fake_x = f(y_images)
+            cycle_x = f(fake_y)
+            cycle_y = g(fake_x)
+            identity_x = f(x_images)
+            identity_y = g(y_images)
 
-            dxx = dx(x_images)
-            dyy = dy(y_images)
-            dxfy = dx(fy)
-            dygx = dy(gx)
+            disc_fake_x = dx(fake_x)
+            disc_fake_y = dy(fake_y)
+
+            loss_cyc = mae_criterion(cycle_x, real_x) + mae_criterion(cycle_y, real_y)
+            loss_identity = mae_criterion(identity_x, real_x) + mae_criterion(identity_y, real_y)
+            loss_gan_g = mse_criterion(disc_fake_x, torch.ones_like(disc_fake_x))
+            loss_gan_f = mse_criterion(disc_fake_y, torch.ones_like(disc_fake_y))
+            fg_loss = loss_cyc + loss_gan_f + loss_gan_g
 
             fg_optimizer.zero_grad()
-
-            loss_cyc = mae_criterion(fgx, x_images) + mae_criterion(gfy, y_images)
-            loss_gg = mse_criterion(dygx, torch.ones_like(dygx))
-            loss_fg = mse_criterion(dxfy, torch.ones_like(dxfy))
-            fg_loss = loss_cyc + loss_gg + loss_fg
-
-            fg_loss.backward(retain_graph=True)
+            fg_loss.backward()
             fg_optimizer.step()
 
+            disc_real_x = dx(real_x)
+            disc_fake_x = dx(fake_x.detach())
+            
+            dx_loss = mse_criterion(disc_real_x, torch.ones_like(disc_real_x)) + mse_criterion(disc_fake_x, torch.zeros_like(disc_fake_x))
+
             dx_optimizer.zero_grad()
-            dx_loss = mse_criterion(dxx, torch.ones_like(dxx)) + mse_criterion(dxfy, torch.zeros_like(dxfy))
             dx_loss.backward()
             dx_optimizer.step()
 
+            disc_real_y = dy(real_y)
+            disc_fake_y = dy(fake_y.detach())
+
+            dy_loss = mse_criterion(disc_real_y, torch.ones_like(disc_real_y)) + mse_criterion(disc_fake_y, torch.zeros_like(disc_fake_y))
+
             dy_optimizer.zero_grad()
-            dy_loss = mse_criterion(dyy, torch.ones_like(dyy)) + mse_criterion(dygx, torch.zeros_like(dygx))
             dy_loss.backward()
             dy_optimizer.step()
 
