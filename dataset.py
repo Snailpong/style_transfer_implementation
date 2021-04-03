@@ -12,8 +12,7 @@ class CycleGANDataset(DataLoader):
         self.transform = transforms.Compose([
             transforms.Resize((256, 256)),
             transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+            transforms.ToTensor()
             ])
 
         self.train_a_list = os.listdir(self.dataset_dir_a)

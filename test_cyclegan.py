@@ -18,8 +18,8 @@ from cyclegan import CycleGANGenerator, CycleGANDiscriminator
 @click.command()
 @click.option('--dataset_type', default='summer2winter_yosemite')
 @click.option('--image_path', default='./data/summer2winter_yosemite/testA/2011-07-01 00_00_00.jpg')
-@click.option('--fg', default='f')
-def test(dataset_type, image_path, fg):
+@click.option('--model_type', default='x2y')
+def test(dataset_type, image_path, model_type):
     os.environ['CUDA_VISIBLE_DEVICES'] = '0'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print('Device: {}'.format(device))
@@ -28,7 +28,7 @@ def test(dataset_type, image_path, fg):
 
     checkpoint = torch.load('./model/cyclegan_' + dataset_type, map_location=device)
     generator = CycleGANGenerator()
-    generator.load_state_dict(checkpoint[fg + '_state_dict'])
+    generator.load_state_dict(checkpoint[model_type + '_state_dict'])
     generator.to(device)
     generator.eval()
     
@@ -38,7 +38,7 @@ def test(dataset_type, image_path, fg):
 
     output = generator(image)
     print(output.shape)
-    output = output.detach().cpu()[0].permute(1, 2, 0)
+    output = output.detach().cpu()[0].permute(1, 2, 0) * 255.
 
     output = Image.fromarray(np.array(output, dtype=np.uint8), 'RGB')
     output.save('./result/{}_result.jpg'.format('.'.join(os.path.basename(image_path).split('.')[:-1])))
