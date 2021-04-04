@@ -17,10 +17,10 @@ BATCH_SIZE = 1
 
 @click.command()
 @click.option('--dataset_type', default='summer2winter_yosemite')
-def train(dataset_type):
+@click.option('--load_model', type=click.BOOL, default=False)
+def train(dataset_type, load_model):
     os.environ['CUDA_VISIBLE_DEVICES'] = '0'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    torch.autograd.set_detect_anomaly(True)
     print('Device: {}'.format(device))
 
     torch.manual_seed(1234)
@@ -36,22 +36,38 @@ def train(dataset_type):
     y2x = CycleGANGenerator().to(device)
     dx = CycleGANDiscriminator().to(device)
     dy = CycleGANDiscriminator().to(device)
+    epoch = 0
 
-    gen_optimizer = optim.Adam(list(y2x.parameters()) + list(x2y.parameters()), lr=0.0002)
+    if load_model:
+        checkpoint = torch.load('./model/cyclegan_' + dataset_type, map_location=device)
+        x2y.load_state_dict(checkpoint['x2y_state_dict'])
+        y2x.load_state_dict(checkpoint['y2x_state_dict'])
+        dx.load_state_dict(checkpoint['dx_state_dict'])
+        dy.load_state_dict(checkpoint['dy_state_dict'])
+        epoch = checkpoint['epoch']
+
+    gen_optimizer = optim.Adam(list(y2x.parameters()) + list(x2y.parameters()), lr=0.00002)
     dx_optimizer = optim.Adam(dx.parameters(), lr=0.0002)
     dy_optimizer = optim.Adam(dy.parameters(), lr=0.0002)
+
+    lr_lambda = lambda epoch: 1 - ((epoch - 1) // 100) / 5
+    gen_scheduler = optim.lr_scheduler.LambdaLR(optimizer=gen_optimizer, lr_lambda=lr_lambda)
+    dx_scheduler = optim.lr_scheduler.LambdaLR(optimizer=dx_optimizer, lr_lambda=lr_lambda)
+    dy_scheduler = optim.lr_scheduler.LambdaLR(optimizer=dy_optimizer, lr_lambda=lr_lambda)
     
     mae_criterion = nn.L1Loss()
     mse_criterion = nn.MSELoss()
 
-    for epoch in range(3000):
+    while epoch <= 500:
+        epoch += 1
+
         x2y.train()
         y2x.train()
         dx.train()
         dy.train()
 
         pbar = tqdm(range(len(dataloader)))
-        pbar.set_description('Epoch {}'.format(epoch+1))
+        pbar.set_description('Epoch {}'.format(epoch))
         total_loss = .0
 
         for idx, (real_x, real_y) in enumerate(dataloader):
@@ -72,7 +88,7 @@ def train(dataset_type):
             loss_identity = mae_criterion(identity_x, real_x) + mae_criterion(identity_y, real_y)
             loss_gan_g = mse_criterion(disc_fake_x, torch.ones_like(disc_fake_x))
             loss_gan_f = mse_criterion(disc_fake_y, torch.ones_like(disc_fake_y))
-            fg_loss = loss_cyc + loss_gan_f + loss_gan_g
+            fg_loss = loss_cyc * 10 + loss_identity + loss_gan_f + loss_gan_g
 
             gen_optimizer.zero_grad()
             fg_loss.backward()
@@ -105,7 +121,12 @@ def train(dataset_type):
             'y2x_state_dict': y2x.state_dict(),
             'dx_state_dict': dx.state_dict(),
             'dy_state_dict': dy.state_dict(),
+            'epoch': epoch,
         }, './model/cyclegan_' + dataset_type)
+
+        gen_scheduler.step()
+        dx_scheduler.step()
+        dy_scheduler.step()
 
 
 if __name__ == '__main__':
