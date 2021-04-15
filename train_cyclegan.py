@@ -10,7 +10,7 @@ from tqdm import tqdm
 import numpy as np
 
 from dataset import CycleGANDataset
-from cyclegan import CycleGANGenerator, CycleGANDiscriminator
+from model_cartoongan import CycleGANGenerator, CycleGANDiscriminator
 
 
 BATCH_SIZE = 1
