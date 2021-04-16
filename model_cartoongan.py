@@ -7,7 +7,7 @@ class Encoder1(torch.nn.Module):
         super(Encoder1, self).__init__()
         self.layers = nn.Sequential(
             nn.Conv2d(3, 64, 7, 1, 3),
-            nn.BatchNorm2d(64),
+            nn.InstanceNorm2d(64),
             nn.ReLU()
         )
 
@@ -21,7 +21,7 @@ class Encoder2(torch.nn.Module):
         self.layers = nn.Sequential(
             nn.Conv2d(channel_input, channel_input * 2, 3, 2, 1),
             nn.Conv2d(channel_input * 2, channel_input * 2, 3, 1, 1),
-            nn.BatchNorm2d(channel_input * 2),
+            nn.InstanceNorm2d(channel_input * 2),
             nn.ReLU()
         )
 
@@ -33,10 +33,10 @@ class ResidualBlock(torch.nn.Module):
     def __init__(self):
         self.layers = nn.Sequential(
             nn.Conv2d(256, 256, 3, 1, 1),
-            nn.BatchNorm2d(256),
+            nn.InstanceNorm2d(256),
             nn.ReLU(),
             nn.Conv2d(256, 256, 3, 1, 1),
-            nn.BatchNorm2d(256)
+            nn.InstanceNorm2d(256)
         )
 
     def forward(self, x):
@@ -49,7 +49,7 @@ class Decoder(torch.nn.Module):
         self.layers = nn.Sequential(
             nn.ConvTranspose2d(channel_input, channel_input / 2, 3, 2, 1),
             nn.Conv2d(channel_input / 2, channel_input / 2, 3, 1, 1),
-            nn.BatchNorm2d(channel_input / 2),
+            nn.InstanceNorm2d(channel_input / 2),
             nn.ReLU()
         )
 
@@ -63,7 +63,7 @@ class DiscriminatorLayer(torch.nn.Module):
         nn.Conv2d(3, channel_input, channel_middle, 2, 1),
         nn.LeakyReLU(0.2),
         nn.Conv2d(3, channel_middle, channel_middle * 2, 1, 1),
-        nn.BatchNorm2d(channel_middle * 2),
+        nn.InstanceNorm2d(channel_middle * 2),
         nn.LeakyReLU(0.2)
 
     def forward(self, x):
@@ -96,7 +96,7 @@ class CartoonGANDiscriminator(torch.nn.Module):
             DiscriminatorLayer(32, 64),
             DiscriminatorLayer(128, 128),
             nn.Conv2d(256, 256, 3, 1, 1),
-            nn.BatchNorm2d(256),
+            nn.InstanceNorm2d(256),
             nn.LeakyReLU(0.2),
             nn.Conv2d(256, 1, 3, 1, 1)
         )

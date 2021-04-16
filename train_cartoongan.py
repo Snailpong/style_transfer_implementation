@@ -9,5 +9,97 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 import numpy as np
 
-from dataset import CartoonGANDataset
+from datasets import TwoTypesDataset
 from model_cartoongan import CartoonGANGenerator, CartoonGANDiscriminator
+from losses import VGGPerceptualLoss
+
+
+BATCH_SIZE = 16
+
+@click.command()
+@click.option('--load_model', type=click.BOOL, default=False)
+def train(dataset_type, load_model):
+    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print('Device: {}'.format(device))
+
+    torch.manual_seed(1234)
+    random.seed(1234)
+    np.random.seed(1234)
+
+    dataset = TwoTypesDataset('./data/cartoon_dataset', 'cartoongan')
+    dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
+
+    os.makedirs('./model', exist_ok=True)
+
+    generator = CartoonGANGenerator().to(device)
+    discriminator = CartoonGANGenerator().to(device)
+
+    epoch = 0
+
+    if load_model:
+        checkpoint = torch.load('./model/cartoongan_' + dataset_type, map_location=device)
+        generator.load_state_dict(checkpoint['generator_state_dict'])
+        discriminator.load_state_dict(checkpoint['discriminator_state_dict'])
+        epoch = checkpoint['epoch']
+
+    optimizer_gen = optim.Adam(generator.parameters(), lr=1e-5, betas=(0.5, 0.999))
+    optimizer_disc = optim.Adam(discriminator.parameters(), lr=1e-5, betas=(0.5, 0.999))
+    
+    criterion_gen = VGGPerceptualLoss()
+    criterion_disc = nn.CrossEntropyLoss()
+
+    while epoch <= 500:
+        epoch += 1
+
+        generator.train()
+        discriminator.train()
+
+        pbar = tqdm(range(len(dataloader)))
+        pbar.set_description('Epoch {}'.format(epoch))
+        total_loss_gen = .0
+        total_loss_disc = .0
+
+        for idx, (img_photo, img_cartoon) in enumerate(dataloader):
+            img_photo = img_photo.to(device, dtype=torch.float32)
+            img_cartoon = img_cartoon.to(device, dtype=torch.float32)
+
+            gen_photo = CartoonGANGenerator(img_photo)
+            loss_con = criterion_gen(img_photo, gen_photo) * 10
+
+            if epoch <= 100:
+                optimizer_gen.zero_grad()
+                loss_con.backward()
+                optimizer_gen.step()
+                total_loss_gen += loss_con.detach().cpu().numpy()
+                pbar.set_postfix_str('gen_loss: ' + str(np.around(total_loss_gen / (idx + 1), 4)))
+                continue
+
+            real_output = CartoonGANDiscriminator(img_cartoon)
+            fake_output = CartoonGANDiscriminator(gen_photo)
+
+            loss_gen = criterion_disc(gen_photo, torch.ones_like(gen_photo)) + loss_con
+            loss_disc = criterion_disc(gen_photo, torch.zeros_like(gen_photo)) + criterion_disc(img_cartoon, torch.ones_like(img_cartoon))
+
+            optimizer_gen.zero_grad()
+            loss_gen.backward()
+            optimizer_gen.step()
+
+            optimizer_disc.zero_grad()
+            loss_disc.backward()
+            optimizer_disc.step()
+
+            total_loss_gen += loss_gen.detach().cpu().numpy()
+            total_loss_disc += loss_disc.detach().cpu().numpy()
+            pbar.set_postfix_str('gen_loss: {}, disc_loss: {}'.format(np.around(total_loss_gen / (idx + 1), 4), np.around(total_loss_disc / (idx + 1), 4)))
+            pbar.update()
+
+        torch.save({
+            'generator_state_dict': generator.state_dict(),
+            'discriminator_state_dict': discriminator.state_dict(),
+            'epoch': epoch,
+        }, './model/cartoongan_' + dataset_type)
+
+
+if __name__ == '__main__':
+    train()

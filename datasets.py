@@ -5,10 +5,14 @@ from PIL import Image
 import torchvision.transforms as transforms
 import numpy as np
 
-class CycleGANDataset(DataLoader):
-    def __init__(self, dataset_dir):
-        self.dataset_dir_a = os.path.join(dataset_dir, 'trainA')
-        self.dataset_dir_b = os.path.join(dataset_dir, 'trainB')
+class TwoTypesDataset(DataLoader):
+    def __init__(self, dataset_dir, type_dataset):
+        if type_dataset == 'cyclegan':
+            dirs = ['trainA', 'trainB']
+        else:
+            dirs = ['photo', 'cartoon']
+        self.dataset_dir_a = os.path.join(dataset_dir, dirs[0])
+        self.dataset_dir_b = os.path.join(dataset_dir, dirs[1])
         self.transform = transforms.Compose([
             transforms.Resize((256, 256)),
             transforms.RandomHorizontalFlip(),
