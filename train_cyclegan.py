@@ -9,8 +9,8 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 import numpy as np
 
-from datasets import CycleGANDataset
-from model_cartoongan import CycleGANGenerator, CycleGANDiscriminator
+from datasets import TypesDataset
+from model_cyclegan import CycleGANGenerator, CycleGANDiscriminator
 
 
 BATCH_SIZE = 1
@@ -27,7 +27,7 @@ def train(dataset_type, load_model):
     random.seed(1234)
     np.random.seed(1234)
 
-    dataset = CycleGANDataset('./data/' + dataset_type, 'cyclegan')
+    dataset = TypesDataset('./data/' + dataset_type, ['trainA', 'trainB'])
     dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
 
     os.makedirs('./model', exist_ok=True)
