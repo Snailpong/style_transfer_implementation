@@ -35,3 +35,11 @@ class TypesDataset(DataLoader):
 
     def __len__(self):
         return len(self.train_lists[0])
+
+
+def get_dataset():
+    pass
+
+
+if __name__ == '__main__':
+    get_dataset()

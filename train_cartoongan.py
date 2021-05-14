@@ -27,7 +27,7 @@ def train(dataset_type, load_model):
     random.seed(1234)
     np.random.seed(1234)
 
-    dataset = TwoTypesDataset('./data/cartoon_dataset', 'cartoongan')
+    dataset = TwoTypesDataset('./data/cartoon_dataset', ['photo', 'cartoon', 'cartoon_blur'])
     dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
 
     os.makedirs('./model', exist_ok=True)
@@ -60,9 +60,10 @@ def train(dataset_type, load_model):
         total_loss_gen = .0
         total_loss_disc = .0
 
-        for idx, (img_photo, img_cartoon) in enumerate(dataloader):
+        for idx, (img_photo, img_cartoon, img_cartoon_blur) in enumerate(dataloader):
             img_photo = img_photo.to(device, dtype=torch.float32)
             img_cartoon = img_cartoon.to(device, dtype=torch.float32)
+            img_cartoon_blur = img_cartoon_blur.to(device, dtype=torch.float32)
 
             gen_photo = CartoonGANGenerator(img_photo)
             loss_con = criterion_gen(img_photo, gen_photo) * 10
@@ -74,12 +75,13 @@ def train(dataset_type, load_model):
                 total_loss_gen += loss_con.detach().cpu().numpy()
                 pbar.set_postfix_str('gen_loss: ' + str(np.around(total_loss_gen / (idx + 1), 4)))
                 continue
-
-            real_output = CartoonGANDiscriminator(img_cartoon)
-            fake_output = CartoonGANDiscriminator(gen_photo)
-
-            loss_gen = criterion_disc(gen_photo, torch.ones_like(gen_photo)) + loss_con
-            loss_disc = criterion_disc(gen_photo, torch.zeros_like(gen_photo)) + criterion_disc(img_cartoon, torch.ones_like(img_cartoon))
+            
+            label_gen = CartoonGANDiscriminator(gen_photo)
+            label_cartoon = CartoonGANDiscriminator(img_cartoon)
+            label_cartoon_blur = CartoonGANDiscriminator(img_cartoon_blur)
+            
+            loss_gen = criterion_disc(label_gen, torch.ones_like(label_gen)) + loss_con
+            loss_disc = criterion_disc(label_gen, torch.zeros_like(label_gen)) + criterion_disc(label_cartoon, torch.ones_like(label_cartoon)) + criterion_disc(label_cartoon_blur, torch.zeros_like(label_cartoon_blur))
 
             optimizer_gen.zero_grad()
             loss_gen.backward()
