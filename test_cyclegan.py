@@ -13,8 +13,8 @@ from torchvision import transforms
 
 import numpy as np
 
-from dataset import CycleGANDataset
-from cyclegan import CycleGANGenerator, CycleGANDiscriminator
+from datasets import TypesDataset
+from model_cyclegan import CycleGANGenerator, CycleGANDiscriminator
 
 
 @click.command()

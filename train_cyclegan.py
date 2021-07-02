@@ -5,10 +5,12 @@ import random
 
 from torch import nn, optim
 from torch.utils.data import DataLoader
+import torchvision.transforms as transforms
 
 from tqdm import tqdm
 import numpy as np
 
+from utils import init_device_seed
 from datasets import TypesDataset
 from model_cyclegan import CycleGANGenerator, CycleGANDiscriminator
 
@@ -19,15 +21,15 @@ BATCH_SIZE = 1
 @click.option('--dataset_type', default='summer2winter_yosemite')
 @click.option('--load_model', type=click.BOOL, default=False)
 def train(dataset_type, load_model):
-    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print('Device: {}'.format(device))
+    device = init_device_seed(1234)
 
-    torch.manual_seed(1234)
-    random.seed(1234)
-    np.random.seed(1234)
+    transform = transforms.Compose([
+        transforms.Resize((256, 256)),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor()
+        ])
 
-    dataset = TypesDataset('./data/' + dataset_type, ['trainA', 'trainB'])
+    dataset = TypesDataset('./data/' + dataset_type, ['trainA', 'trainB'], transform)
     dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
 
     os.makedirs('./model', exist_ok=True)

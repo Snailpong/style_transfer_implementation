@@ -1,6 +1,20 @@
 import torch
 import numpy as np
+import random
 import cv2
+import os
+
+
+def init_device_seed(seed):
+    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print('Device: {}'.format(device))
+
+    torch.manual_seed(seed)
+    random.seed(seed)
+    np.random.seed(seed)
+
+    return device
 
 
 def get_smoothed_image(img):

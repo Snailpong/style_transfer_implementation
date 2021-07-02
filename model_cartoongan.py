@@ -31,6 +31,7 @@ class Encoder2(torch.nn.Module):
 
 class ResidualBlock(torch.nn.Module):
     def __init__(self):
+        super(ResidualBlock, self).__init__()
         self.layers = nn.Sequential(
             nn.Conv2d(256, 256, 3, 1, 1),
             nn.InstanceNorm2d(256),
@@ -45,10 +46,10 @@ class ResidualBlock(torch.nn.Module):
 
 class Decoder(torch.nn.Module):
     def __init__(self, channel_input):
-        super(Encoder2, self).__init__()
+        super(Decoder, self).__init__()
         self.layers = nn.Sequential(
-            nn.ConvTranspose2d(channel_input, channel_input / 2, 3, 2, 1),
-            nn.Conv2d(channel_input / 2, channel_input / 2, 3, 1, 1),
+            nn.ConvTranspose2d(channel_input, channel_input // 2, 3, 2, 1),
+            nn.Conv2d(channel_input // 2, channel_input // 2, 3, 1, 1),
             nn.InstanceNorm2d(channel_input / 2),
             nn.ReLU()
         )

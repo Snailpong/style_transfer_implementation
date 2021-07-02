@@ -5,11 +5,13 @@ import random
 
 from torch import nn, optim
 from torch.utils.data import DataLoader
+import torchvision.transforms as transforms
 
 from tqdm import tqdm
 import numpy as np
 
-from datasets import TwoTypesDataset
+from utils import init_device_seed
+from datasets import CartoonGANDataset
 from model_cartoongan import CartoonGANGenerator, CartoonGANDiscriminator
 from losses import VGGPerceptualLoss
 
@@ -18,16 +20,17 @@ BATCH_SIZE = 16
 
 @click.command()
 @click.option('--load_model', type=click.BOOL, default=False)
-def train(dataset_type, load_model):
-    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print('Device: {}'.format(device))
+def train(load_model):
+    device = init_device_seed(1234)
 
-    torch.manual_seed(1234)
-    random.seed(1234)
-    np.random.seed(1234)
+    transform = transforms.Compose([
+        transforms.RandomCrop((768, 768), pad_if_needed=True),
+        transforms.RandomHorizontalFlip(),
+        transforms.Resize((256, 256)),
+        transforms.ToTensor()
+        ])
 
-    dataset = TwoTypesDataset('./data/cartoon_dataset', ['photo', 'cartoon', 'cartoon_blur'])
+    dataset = CartoonGANDataset('./data/cartoon_dataset', ['photo', 'cartoon'], transform)
     dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
 
     os.makedirs('./model', exist_ok=True)
@@ -38,7 +41,7 @@ def train(dataset_type, load_model):
     epoch = 0
 
     if load_model:
-        checkpoint = torch.load('./model/cartoongan_' + dataset_type, map_location=device)
+        checkpoint = torch.load('./model/cartoongan', map_location=device)
         generator.load_state_dict(checkpoint['generator_state_dict'])
         discriminator.load_state_dict(checkpoint['discriminator_state_dict'])
         epoch = checkpoint['epoch']
@@ -60,7 +63,10 @@ def train(dataset_type, load_model):
         total_loss_gen = .0
         total_loss_disc = .0
 
-        for idx, (img_photo, img_cartoon, img_cartoon_blur) in enumerate(dataloader):
+        # for idx, (img_photo, [img_cartoon, img_cartoon_blur]) in enumerate(dataloader):
+        for idx, (img_photo, img_cartoon) in enumerate(dataloader):
+            print(img_photo.shape)
+            print(img_cartoon.shape)
             img_photo = img_photo.to(device, dtype=torch.float32)
             img_cartoon = img_cartoon.to(device, dtype=torch.float32)
             img_cartoon_blur = img_cartoon_blur.to(device, dtype=torch.float32)
@@ -100,7 +106,7 @@ def train(dataset_type, load_model):
             'generator_state_dict': generator.state_dict(),
             'discriminator_state_dict': discriminator.state_dict(),
             'epoch': epoch,
-        }, './model/cartoongan_' + dataset_type)
+        }, './model/cartoongan')
 
 
 if __name__ == '__main__':
