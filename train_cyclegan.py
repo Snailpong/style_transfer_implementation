@@ -130,6 +130,5 @@ def train(dataset_type, load_model):
         dx_scheduler.step()
         dy_scheduler.step()
 
-
 if __name__ == '__main__':
     train()
