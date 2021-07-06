@@ -30,15 +30,18 @@ class CartoonGANDataset(TypesDataset):
     def __init__(self, dataset_dir, dirs, transform):
         super().__init__(dataset_dir, dirs, transform)
         self.blur = transforms.GaussianBlur(5, 1)
-        self.toTensor = transforms.ToTensor()
+        self.to_tensor = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))
+            ])
 
     def __getitem__(self, index):
         photo = self.transform(Image.open(f'{self.dataset_dir}/{self.dirs[0]}/{self.train_lists_a[index]}'))
-        photo = self.toTensor(photo)
+        photo = self.to_tensor(photo)
 
         indexb = random.randint(0, len(self.train_lists_b) - 1)
         _cartoon = self.transform(Image.open(f'{self.dataset_dir}/{self.dirs[1]}/{self.train_lists_b[indexb]}'))
-        cartoon = self.toTensor(_cartoon)
-        cartoon_blur = self.toTensor(self.blur(_cartoon))
+        cartoon = self.to_tensor(_cartoon)
+        cartoon_blur = self.to_tensor(self.blur(_cartoon))
 
         return photo, [cartoon, cartoon_blur]

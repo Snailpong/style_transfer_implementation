@@ -28,6 +28,15 @@ def test(image_path):
     generator.load_state_dict(checkpoint['generator_state_dict'])
     generator.eval()
 
+    to_tensor = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))
+        ])
+    to_pil = transforms.Compose([
+        transforms.Normalize(mean=(-1, -1, -1), std=(2, 2, 2)),
+        transforms.ToPILImage()
+        ])
+
     if os.path.isdir(image_path):
         files_list = []
         file_names_list = os.listdir(image_path)
@@ -46,20 +55,20 @@ def test(image_path):
         size_min = min(image.size)
 
         transform = transforms.Compose([
-        transforms.CenterCrop((size_min, size_min)),
-        transforms.RandomHorizontalFlip(),
-        transforms.Resize((256, 256))
+            transforms.CenterCrop((size_min, size_min)),
+            transforms.RandomHorizontalFlip(),
+            transforms.Resize((256, 256))
         ])
 
         image = transform(image)
         image.save('{}/{}_orig.jpg'.format(output_dir,file_name))
 
-        image = transforms.ToTensor()(image)
+        image = to_tensor(image)
         image = torch.unsqueeze(image, 0)
 
         output = generator(image)
-        output = torch.clip(output.detach().cpu()[0], 0, 1)
-        output = transforms.ToPILImage()(output)
+        output = torch.clip(output.detach().cpu()[0], -1, 1)
+        output = to_pil(output)
 
         output.save('{}/{}.jpg'.format(output_dir,file_name))
 
