@@ -45,8 +45,8 @@ def train(load_model):
         discriminator.load_state_dict(checkpoint['discriminator_state_dict'])
         epoch = checkpoint['epoch']
 
-    optimizer_gen = optim.Adam(generator.parameters(), lr=1e-4, betas=(0.5, 0.999))
-    optimizer_disc = optim.Adam(discriminator.parameters(), lr=1e-4, betas=(0.5, 0.999))
+    optimizer_gen = optim.Adam(generator.parameters(), lr=2e-4, betas=(0.5, 0.999))
+    optimizer_disc = optim.Adam(discriminator.parameters(), lr=2e-4, betas=(0.5, 0.999))
     
     criterion_gen = VGGPerceptualLoss().to(device)
     # criterion_disc = nn.CrossEntropyLoss()
@@ -70,7 +70,7 @@ def train(load_model):
 
             optimizer_gen.zero_grad()
             gen_photo = generator(img_photo)
-            loss_con = criterion_gen(img_photo, gen_photo)
+            loss_con = criterion_gen(img_photo, gen_photo, feature_layers=[3]) * 10
 
             if epoch <= 30:
                 loss_con.backward()
@@ -81,7 +81,8 @@ def train(load_model):
                 continue
             
             label_gen = discriminator(gen_photo)
-            loss_gen = criterion_disc(label_gen, torch.ones_like(label_gen)) + loss_con
+            loss_generated_gen = criterion_disc(label_gen, torch.ones_like(label_gen))
+            loss_gen = loss_generated_gen + loss_con
 
             loss_gen.backward()
             optimizer_gen.step()
@@ -92,7 +93,10 @@ def train(load_model):
             label_cartoon = discriminator(img_cartoon)
             label_cartoon_blur = discriminator(img_cartoon_blur)
             
-            loss_disc = criterion_disc(label_gen, torch.zeros_like(label_gen)) + criterion_disc(label_cartoon, torch.ones_like(label_cartoon)) + criterion_disc(label_cartoon_blur, torch.zeros_like(label_cartoon_blur))
+            loss_generated_disc = criterion_disc(label_gen, torch.zeros_like(label_gen))
+            loss_cartoon_disc = criterion_disc(label_cartoon, torch.ones_like(label_cartoon))
+            loss_blur_disc = criterion_disc(label_cartoon_blur, torch.zeros_like(label_cartoon_blur))
+            loss_disc = loss_generated_disc + loss_cartoon_disc + loss_blur_disc
 
             loss_disc.backward()
             optimizer_disc.step()

@@ -48,7 +48,7 @@ class Decoder(torch.nn.Module):
     def __init__(self, channel_input):
         super(Decoder, self).__init__()
         self.layers = nn.Sequential(
-            nn.ConvTranspose2d(channel_input, channel_input // 2, 3, 2, 1),
+            nn.ConvTranspose2d(channel_input, channel_input // 2, 3, 2, 1, output_padding=1),
             nn.Conv2d(channel_input // 2, channel_input // 2, 3, 1, 1),
             nn.InstanceNorm2d(channel_input / 2),
             nn.ReLU()
@@ -81,7 +81,8 @@ class CartoonGANGenerator(nn.Module):
             *[ResidualBlock() for i in range(8)],
             Decoder(256),
             Decoder(128),
-            nn.Conv2d(64, 3, 7, 1, 3)
+            nn.Conv2d(64, 3, 7, 1, 3),
+            nn.Tanh()
         )
 
     def forward(self, x):

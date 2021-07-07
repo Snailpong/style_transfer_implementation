@@ -80,7 +80,8 @@ class CycleGANGenerator(nn.Module):
         self.layers = nn.Sequential(
             Encoder(),
             Transformer(),
-            Decoder()
+            Decoder(),
+            nn.Tanh()
         )
 
     def forward(self, x):

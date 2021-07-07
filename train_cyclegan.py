@@ -26,7 +26,8 @@ def train(dataset_type, load_model):
     transform = transforms.Compose([
         transforms.Resize((256, 256)),
         transforms.RandomHorizontalFlip(),
-        transforms.ToTensor()
+        transforms.ToTensor(),
+        transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))
         ])
 
     dataset = TypesDataset('./data/' + dataset_type, ['trainA', 'trainB'], transform)
