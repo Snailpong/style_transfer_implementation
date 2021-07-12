@@ -23,14 +23,7 @@ BATCH_SIZE = 1
 def train(dataset_type, load_model):
     device = init_device_seed(1234)
 
-    transform = transforms.Compose([
-        transforms.Resize((256, 256)),
-        transforms.RandomHorizontalFlip(),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))
-        ])
-
-    dataset = TypesDataset('./data/' + dataset_type, ['trainA', 'trainB'], transform)
+    dataset = TypesDataset('./data/' + dataset_type, ['trainA', 'trainB'])
     dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
 
     os.makedirs('./model', exist_ok=True)

@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+import torchvision
 
 
 class Encoder1(torch.nn.Module):
@@ -8,7 +9,7 @@ class Encoder1(torch.nn.Module):
         self.layers = nn.Sequential(
             nn.Conv2d(3, 64, 7, 1, 3),
             nn.InstanceNorm2d(64),
-            nn.ReLU()
+            nn.ReLU(inplace=True)
         )
 
     def forward(self, x):
@@ -22,7 +23,7 @@ class Encoder2(torch.nn.Module):
             nn.Conv2d(channel_input, channel_input * 2, 3, 2, 1),
             nn.Conv2d(channel_input * 2, channel_input * 2, 3, 1, 1),
             nn.InstanceNorm2d(channel_input * 2),
-            nn.ReLU()
+            nn.ReLU(inplace=True)
         )
 
     def forward(self, x):
@@ -35,7 +36,7 @@ class ResidualBlock(torch.nn.Module):
         self.layers = nn.Sequential(
             nn.Conv2d(256, 256, 3, 1, 1),
             nn.InstanceNorm2d(256),
-            nn.ReLU(),
+            nn.ReLU(inplace=True),
             nn.Conv2d(256, 256, 3, 1, 1),
             nn.InstanceNorm2d(256)
         )
@@ -51,7 +52,7 @@ class Decoder(torch.nn.Module):
             nn.ConvTranspose2d(channel_input, channel_input // 2, 3, 2, 1, output_padding=1),
             nn.Conv2d(channel_input // 2, channel_input // 2, 3, 1, 1),
             nn.InstanceNorm2d(channel_input / 2),
-            nn.ReLU()
+            nn.ReLU(inplace=True)
         )
 
     def forward(self, x):
@@ -61,11 +62,13 @@ class Decoder(torch.nn.Module):
 class DiscriminatorLayer(torch.nn.Module):
     def __init__(self, channel_input, channel_middle):
         super(DiscriminatorLayer, self).__init__()
-        nn.Conv2d(3, channel_input, channel_middle, 2, 1),
-        nn.LeakyReLU(0.2),
-        nn.Conv2d(3, channel_middle, channel_middle * 2, 1, 1),
-        nn.InstanceNorm2d(channel_middle * 2),
-        nn.LeakyReLU(0.2)
+        self.layers = nn.Sequential(
+            nn.Conv2d(channel_input, channel_middle, 3, 2, 1),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Conv2d(channel_middle, channel_middle * 2, 3, 1, 1),
+            nn.BatchNorm2d(channel_middle * 2),
+            nn.LeakyReLU(0.2, inplace=True)
+        )
 
     def forward(self, x):
         return self.layers(x)
@@ -94,14 +97,28 @@ class CartoonGANDiscriminator(torch.nn.Module):
         super(CartoonGANDiscriminator, self).__init__()
         self.layers = nn.Sequential(
             nn.Conv2d(3, 32, 3, 1, 1),
-            nn.LeakyReLU(0.2),
+            nn.LeakyReLU(0.2, inplace=True),
             DiscriminatorLayer(32, 64),
             DiscriminatorLayer(128, 128),
             nn.Conv2d(256, 256, 3, 1, 1),
-            nn.InstanceNorm2d(256),
-            nn.LeakyReLU(0.2),
+            nn.BatchNorm2d(256),
+            nn.LeakyReLU(0.2, inplace=True),
             nn.Conv2d(256, 1, 3, 1, 1)
         )
 
     def forward(self, x):
         return self.layers(x)
+
+
+class VGG19(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        vgg = torchvision.models.vgg19_bn(pretrained=True)
+        self.feature_extractor = vgg.features[:37]
+
+        for child in self.feature_extractor.children():
+            for param in child.parameters():
+                param.requires_grad = False
+
+    def forward(self, input):
+        return self.feature_extractor(input)

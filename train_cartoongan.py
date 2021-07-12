@@ -1,6 +1,7 @@
 import click
 import os
 import torch
+import time
 import random
 
 from torch import nn, optim
@@ -12,30 +13,24 @@ import numpy as np
 
 from utils import init_device_seed
 from datasets import CartoonGANDataset
-from model_cartoongan import CartoonGANGenerator, CartoonGANDiscriminator
-from losses import VGGPerceptualLoss
+from model_cartoongan import CartoonGANGenerator, CartoonGANDiscriminator, VGG19
 
 
-BATCH_SIZE = 6
+BATCH_SIZE = 8
 
 @click.command()
 @click.option('--load_model', type=click.BOOL, default=False)
 def train(load_model):
     device = init_device_seed(1234)
 
-    transform = transforms.Compose([
-        transforms.RandomCrop((768, 768), pad_if_needed=True),
-        transforms.RandomHorizontalFlip(),
-        transforms.Resize((256, 256))
-        ])
-
-    dataset = CartoonGANDataset('./data/cartoon_dataset', ['photo', 'cartoon'], transform)
+    dataset = CartoonGANDataset('../data/cartoon_dataset', ['photo', 'cartoon', 'cartoon_smoothed'])
     dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
 
     os.makedirs('./model', exist_ok=True)
 
     generator = CartoonGANGenerator().to(device)
-    discriminator = CartoonGANGenerator().to(device)
+    discriminator = CartoonGANDiscriminator().to(device)
+    feature_extractor = VGG19().to(device)
 
     epoch = 0
 
@@ -48,8 +43,7 @@ def train(load_model):
     optimizer_gen = optim.Adam(generator.parameters(), lr=2e-4, betas=(0.5, 0.999))
     optimizer_disc = optim.Adam(discriminator.parameters(), lr=2e-4, betas=(0.5, 0.999))
     
-    criterion_gen = VGGPerceptualLoss().to(device)
-    # criterion_disc = nn.CrossEntropyLoss()
+    criterion_gen = nn.L1Loss()
     criterion_disc = nn.BCEWithLogitsLoss()
 
     while epoch <= 200:
@@ -61,6 +55,7 @@ def train(load_model):
         pbar = tqdm(range(len(dataloader)))
         pbar.set_description('Epoch {}'.format(epoch))
         total_loss_gen = .0
+        total_loss_con = .0
         total_loss_disc = .0
 
         for idx, (img_photo, [img_cartoon, img_cartoon_blur]) in enumerate(dataloader):
@@ -68,28 +63,26 @@ def train(load_model):
             img_cartoon = img_cartoon.to(device, dtype=torch.float32)
             img_cartoon_blur = img_cartoon_blur.to(device, dtype=torch.float32)
 
-            optimizer_gen.zero_grad()
-            gen_photo = generator(img_photo)
-            loss_con = criterion_gen(img_photo, gen_photo, feature_layers=[3]) * 10
+            if epoch <= 10:
+                optimizer_gen.zero_grad()
 
-            if epoch <= 30:
+                gen_photo = generator(img_photo)
+                x_features = feature_extractor((img_photo + 1) / 2).detach()
+                Gx_features = feature_extractor((gen_photo + 1) / 2)
+
+                loss_con = criterion_gen(Gx_features, x_features) * 10
                 loss_con.backward()
                 optimizer_gen.step()
-                total_loss_gen += loss_con.item()
-                pbar.set_postfix_str('gen_loss: ' + str(np.around(loss_con.item(), 4)))
+
+                total_loss_con += loss_con.item()
+                pbar.set_postfix_str('CLoss: ' + str(np.around(total_loss_con / (idx + 1), 4)))
                 pbar.update()
                 continue
-            
-            label_gen = discriminator(gen_photo)
-            loss_generated_gen = criterion_disc(label_gen, torch.ones_like(label_gen))
-            loss_gen = loss_generated_gen + loss_con
 
-            loss_gen.backward()
-            optimizer_gen.step()
-            optimizer_gen.zero_grad()
             optimizer_disc.zero_grad()
 
-            label_gen = discriminator(gen_photo.detach())
+            gen_photo = generator(img_photo).detach()
+            label_gen = discriminator(gen_photo)
             label_cartoon = discriminator(img_cartoon)
             label_cartoon_blur = discriminator(img_cartoon_blur)
             
@@ -101,9 +94,25 @@ def train(load_model):
             loss_disc.backward()
             optimizer_disc.step()
 
-            total_loss_gen += loss_gen.item()
+            optimizer_gen.zero_grad()
+            gen_photo = generator(img_photo)
+
+            x_features = feature_extractor((img_photo + 1) / 2).detach()
+            Gx_features = feature_extractor((gen_photo + 1) / 2)
+
+            loss_con = criterion_gen(Gx_features, x_features) * 10
+            label_gen = discriminator(gen_photo)
+            loss_generated_gen = criterion_disc(label_gen, torch.ones_like(label_gen))
+            loss_gen = loss_generated_gen + loss_con
+
+            loss_gen.backward()
+            optimizer_gen.step()
+            optimizer_gen.zero_grad()
+
+            total_loss_gen += loss_generated_gen.item()
+            total_loss_con += loss_con.item()
             total_loss_disc += loss_disc.item()
-            pbar.set_postfix_str('gen_loss: {}, disc_loss: {}'.format(np.around(loss_gen.item(), 4), np.around(loss_disc.item(), 4)))
+            pbar.set_postfix_str('Gloss: {}, Closs: {}, Dloss: {}'.format(np.around(total_loss_gen / (idx + 1), 4), np.around(total_loss_con / (idx + 1), 4), np.around(total_loss_disc / (idx + 1), 4)))
             pbar.update()
 
         torch.save({

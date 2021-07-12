@@ -7,7 +7,7 @@ class ConvLayer(nn.Module):
         self.layers = nn.Sequential(
             nn.Conv2d(channel_input, channel_output, kernal, stride, padding),
             nn.InstanceNorm2d(channel_output),
-            nn.LeakyReLU()
+            nn.ReLU(inplace=True)
         )
 
     def forward(self, x):
@@ -19,7 +19,8 @@ class ConvLayer2(nn.Module):
         super(ConvLayer2, self).__init__()
         self.layers = nn.Sequential(
             nn.Conv2d(channel_input, channel_output, kernal, stride, padding),
-            nn.InstanceNorm2d(channel_output),
+            nn.BatchNorm2d(channel_output),
+            nn.LeakyReLU(0.2, inplace=True)
         )
 
     def forward(self, x):
@@ -32,7 +33,7 @@ class DeconvLayer(nn.Module):
         self.layers = nn.Sequential(
             nn.ConvTranspose2d(channel_input, channel_output, kernal, stride, padding, output_padding=1),
             nn.InstanceNorm2d(channel_output),
-            nn.LeakyReLU()
+            nn.ReLU(inplace=True)
         )
 
     def forward(self, x):
