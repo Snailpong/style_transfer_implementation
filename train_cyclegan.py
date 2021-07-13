@@ -42,9 +42,9 @@ def train(dataset_type, load_model):
         dy.load_state_dict(checkpoint['dy_state_dict'])
         epoch = checkpoint['epoch']
 
-    gen_optimizer = optim.Adam(list(y2x.parameters()) + list(x2y.parameters()), lr=0.00002)
-    dx_optimizer = optim.Adam(dx.parameters(), lr=0.0002)
-    dy_optimizer = optim.Adam(dy.parameters(), lr=0.0002)
+    gen_optimizer = optim.Adam(list(y2x.parameters()) + list(x2y.parameters()), lr=2e-4, betas=(0.5, 0.999))
+    dx_optimizer = optim.Adam(dx.parameters(), lr=2e-4)
+    dy_optimizer = optim.Adam(dy.parameters(), lr=2e-4)
 
     lr_lambda = lambda epoch: 1 - ((epoch - 1) // 100) / 5
     gen_scheduler = optim.lr_scheduler.LambdaLR(optimizer=gen_optimizer, lr_lambda=lr_lambda)
@@ -64,12 +64,15 @@ def train(dataset_type, load_model):
 
         pbar = tqdm(range(len(dataloader)))
         pbar.set_description('Epoch {}'.format(epoch))
-        total_loss = .0
+        total_content_loss = .0
+        total_gan_gen_loss = .0
+        total_gan_disc_loss = .0
 
         for idx, (real_x, real_y) in enumerate(dataloader):
             real_x = real_x.to(device, dtype=torch.float32)
             real_y = real_y.to(device, dtype=torch.float32)
 
+            # Image generation and discriminate
             fake_y = x2y(real_x)
             fake_x = y2x(real_y)
             cycle_x = y2x(fake_y)
@@ -80,16 +83,20 @@ def train(dataset_type, load_model):
             disc_fake_x = dx(fake_x)
             disc_fake_y = dy(fake_y)
 
+            # Generator loss compute and update
             loss_cyc = mae_criterion(cycle_x, real_x) + mae_criterion(cycle_y, real_y)
             loss_identity = mae_criterion(identity_x, real_x) + mae_criterion(identity_y, real_y)
             loss_gan_g = mse_criterion(disc_fake_x, torch.ones_like(disc_fake_x))
             loss_gan_f = mse_criterion(disc_fake_y, torch.ones_like(disc_fake_y))
-            fg_loss = loss_cyc * 10 + loss_identity + loss_gan_f + loss_gan_g
+            loss_gan_content = loss_cyc * 10 + loss_identity
+            loss_gan_generator = loss_gan_g + loss_gan_f
+            fg_loss = loss_gan_content + loss_gan_generator
 
             gen_optimizer.zero_grad()
             fg_loss.backward()
             gen_optimizer.step()
 
+            # Discriminator loss and update
             disc_real_x = dx(real_x)
             disc_fake_x = dx(fake_x.detach())
             
@@ -108,10 +115,17 @@ def train(dataset_type, load_model):
             dy_loss.backward()
             dy_optimizer.step()
 
-            total_loss += fg_loss.detach().cpu().numpy() + dx_loss.detach().cpu().numpy() + dy_loss.detach().cpu().numpy()
-            pbar.set_postfix_str('loss: ' + str(np.around(total_loss / (idx + 1), 4)))
+            # Loss display
+            total_content_loss += loss_gan_content.item()
+            total_gan_gen_loss += loss_gan_generator.item()
+            total_gan_disc_loss += dx_loss.item() + dy_loss.item()
+            pbar.set_postfix_str('G_Content: {}, G_GAN: {}, D: {}'.format(
+                np.around(loss_gan_content / (idx + 1), 4),
+                np.around(total_gan_gen_loss / (idx + 1), 4),
+                np.around(total_gan_disc_loss / (idx + 1), 4)))
             pbar.update()
 
+        # Save checkpoint per epoch
         torch.save({
             'x2y_state_dict': x2y.state_dict(),
             'y2x_state_dict': y2x.state_dict(),

@@ -8,7 +8,7 @@ import numpy as np
 
 
 class TypesDataset(DataLoader):
-    def __init__(self, dataset_dir, dirs, transform):
+    def __init__(self, dataset_dir, dirs):
         self.dataset_dir = dataset_dir
         self.dirs = dirs
         self.train_lists_a = os.listdir(f'{dataset_dir}/{dirs[0]}')
@@ -32,8 +32,8 @@ class TypesDataset(DataLoader):
 
 
 class CartoonGANDataset(TypesDataset):
-    def __init__(self, dataset_dir, dirs, transform):
-        super().__init__(dataset_dir, dirs, transform)
+    def __init__(self, dataset_dir, dirs):
+        super().__init__(dataset_dir, dirs)
         self.blur = transforms.GaussianBlur(5, 1)
         self.train_lists_c = os.listdir(f'{dataset_dir}/{dirs[2]}')
         self.transform = transforms.Compose([

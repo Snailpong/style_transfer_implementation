@@ -23,7 +23,7 @@ BATCH_SIZE = 8
 def train(load_model):
     device = init_device_seed(1234)
 
-    dataset = CartoonGANDataset('../data/cartoon_dataset', ['photo', 'cartoon', 'cartoon_smoothed'])
+    dataset = CartoonGANDataset('./data/cartoon_dataset', ['photo', 'cartoon', 'cartoon_smoothed'])
     dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
 
     os.makedirs('./model', exist_ok=True)
@@ -63,6 +63,7 @@ def train(load_model):
             img_cartoon = img_cartoon.to(device, dtype=torch.float32)
             img_cartoon_blur = img_cartoon_blur.to(device, dtype=torch.float32)
 
+            # Initializaiton phase
             if epoch <= 10:
                 optimizer_gen.zero_grad()
 
@@ -79,6 +80,7 @@ def train(load_model):
                 pbar.update()
                 continue
 
+            # Discriminator loss and update
             optimizer_disc.zero_grad()
 
             gen_photo = generator(img_photo).detach()
@@ -94,6 +96,7 @@ def train(load_model):
             loss_disc.backward()
             optimizer_disc.step()
 
+            # Generator loss and update
             optimizer_gen.zero_grad()
             gen_photo = generator(img_photo)
 
@@ -109,12 +112,17 @@ def train(load_model):
             optimizer_gen.step()
             optimizer_gen.zero_grad()
 
+            # Loss display
             total_loss_gen += loss_generated_gen.item()
             total_loss_con += loss_con.item()
             total_loss_disc += loss_disc.item()
-            pbar.set_postfix_str('Gloss: {}, Closs: {}, Dloss: {}'.format(np.around(total_loss_gen / (idx + 1), 4), np.around(total_loss_con / (idx + 1), 4), np.around(total_loss_disc / (idx + 1), 4)))
+            pbar.set_postfix_str('G_GAN: {}, G_Content: {}, D: {}'.format(
+                np.around(total_loss_gen / (idx + 1), 4),
+                np.around(total_loss_con / (idx + 1), 4),
+                np.around(total_loss_disc / (idx + 1), 4)))
             pbar.update()
 
+        # Save checkpoint per epoch
         torch.save({
             'generator_state_dict': generator.state_dict(),
             'discriminator_state_dict': discriminator.state_dict(),

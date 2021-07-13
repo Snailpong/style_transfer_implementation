@@ -31,11 +31,11 @@ def test(image_path):
     to_tensor = transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))
-        ])
+    ])
     to_pil = transforms.Compose([
         transforms.Normalize(mean=(-1, -1, -1), std=(2, 2, 2)),
         transforms.ToPILImage()
-        ])
+    ])
 
     if os.path.isdir(image_path):
         files_list = []
@@ -64,10 +64,10 @@ def test(image_path):
         image.save('{}/{}_orig.jpg'.format(output_dir,file_name))
 
         image = to_tensor(image)
-        image = torch.unsqueeze(image, 0)
+        image = torch.unsqueeze(image, 0).to(device)
 
         output = generator(image)
-        output = torch.clip(output.detach().cpu()[0], -1, 1)
+        output = output.detach().cpu()[0]
         output = to_pil(output)
 
         output.save('{}/{}.jpg'.format(output_dir,file_name))
