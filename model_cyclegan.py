@@ -89,7 +89,7 @@ class CycleGANGenerator(nn.Module):
         return self.layers(x)
 
 
-class CycleGANDiscriminator(torch.nn.Module):
+class CycleGANDiscriminator(nn.Module):
     def __init__(self):
         super(CycleGANDiscriminator, self).__init__()
         self.layers = nn.Sequential(
