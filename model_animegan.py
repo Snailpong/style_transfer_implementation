@@ -69,21 +69,6 @@ class UpConv(nn.Module):
         return self.layers(x)
 
 
-class DiscriminatorLayer(nn.Module):
-    def __init__(self, channels):
-        super(DiscriminatorLayer, self).__init__()
-        self.layers = nn.Sequential(
-            nn.Conv2d(channels, channels * 2, 3, 2, 1, bias=False),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(channels * 2, channels * 2, 3, 1, 1, bias=False),
-            nn.InstanceNorm2d(channels * 2),
-            nn.LeakyReLU(0.2, inplace=True)
-        )
-
-    def forward(self, x):
-        return self.layers(x)
-
-
 class AnimeGANGenerator(nn.Module):
     def __init__(self):
         super(AnimeGANGenerator, self).__init__()
@@ -105,24 +90,6 @@ class AnimeGANGenerator(nn.Module):
             ConvBlock(64),
             nn.Conv2d(64, 3, 3, 1, 1),
             nn.Tanh()
-        )
-
-    def forward(self, x):
-        return self.layers(x)
-
-
-class AnimeGANDiscriminator(nn.Module):
-    def __init__(self):
-        super(AnimeGANDiscriminator, self).__init__()
-        self.layers = nn.Sequential(
-            nn.Conv2d(3, 32, 3, 1, 1, bias=False),
-            nn.LeakyReLU(0.2, inplace=True),
-            DiscriminatorLayer(32),
-            DiscriminatorLayer(64),
-            nn.Conv2d(256, 256, 3, 1, 1, bias=False),
-            nn.InstanceNorm2d(256),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(256, 1, 3, 1, 1, bias=False)
         )
 
     def forward(self, x):
