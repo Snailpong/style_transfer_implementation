@@ -18,7 +18,7 @@ class ConvBlock(nn.Module):
 
 class DSConv(nn.Module):
     def __init__(self, channel_input, channel_output, stride):
-        super(ConvBlock, self).__init__()
+        super(DSConv, self).__init__()
         self.layers = nn.Sequential(
             nn.Conv2d(channel_input, channel_input, 3, stride, 1, groups=channel_input, bias=False),
             nn.Conv2d(channel_input, channel_output, 1, bias=False),
@@ -31,7 +31,7 @@ class DSConv(nn.Module):
         
 
 class InvertedResidualBlock(nn.Module):
-    def __init__(self, channels):
+    def __init__(self):
         super(InvertedResidualBlock, self).__init__()
         self.layers = nn.Sequential(
             ConvBlock(256, 512),
@@ -84,27 +84,13 @@ class AnimeGANGenerator(nn.Module):
             ConvBlock(256, 256),
             UpConv(256, 128),
             DSConv(128, 128, 1),
-            ConvBlock(128),
+            ConvBlock(128, 128),
             UpConv(128, 64),
-            ConvBlock(64),
-            ConvBlock(64),
+            ConvBlock(64, 64),
+            ConvBlock(64, 64),
             nn.Conv2d(64, 3, 3, 1, 1),
             nn.Tanh()
         )
 
     def forward(self, x):
         return self.layers(x)
-
-
-class VGG19(nn.Module):
-    def __init__(self):
-        super().__init__()
-        vgg = torchvision.models.vgg19_bn(pretrained=True)
-        self.feature_extractor = vgg.features[:37]
-
-        for child in self.feature_extractor.children():
-            for param in child.parameters():
-                param.requires_grad = False
-
-    def forward(self, input):
-        return self.feature_extractor(input)

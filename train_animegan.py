@@ -13,8 +13,9 @@ import numpy as np
 
 from utils import init_device_seed
 from datasets import AnimeGANDataset
-from model_animegan import AnimeGANGenerator, VGG19
-from model_cartoongan import CartoonGANDiscriminator
+from model_animegan import AnimeGANGenerator
+from model_cartoongan import CartoonGANDiscriminator, VGG19
+from func_animegan import *
 
 
 BATCH_SIZE = 4
@@ -22,6 +23,8 @@ W_ADV = 300
 W_CON = 1.5
 W_GRA = 3
 W_COL = 10
+
+
 
 @click.command()
 @click.option('--load_model', type=click.BOOL, default=False)
@@ -67,10 +70,10 @@ def train(load_model):
 
         for idx, images in enumerate(dataloader):
             img_photo = images[0].to(device, dtype=torch.float32)
-            img_cartoon = images[1].to(device, dtype=torch.float32)
-            img_cartoon_blur = images[2].to(device, dtype=torch.float32)
-            img_cartoon_gray = images[3].to(device, dtype=torch.float32)
-            img_cartoon_blur_gray = images[4].to(device, dtype=torch.float32)
+            img_cartoon = images[1][0].to(device, dtype=torch.float32)
+            img_cartoon_blur = images[1][1].to(device, dtype=torch.float32)
+            img_cartoon_gray = images[1][2].to(device, dtype=torch.float32)
+            img_cartoon_blur_gray = images[1][3].to(device, dtype=torch.float32)
 
             # Initializaiton phase
             if epoch <= 3:
@@ -95,12 +98,14 @@ def train(load_model):
             gen_photo = generator(img_photo).detach()
             label_gen = discriminator(gen_photo)
             label_cartoon = discriminator(img_cartoon)
-            label_cartoon_blur = discriminator(img_cartoon_blur)
+            label_cartoon_gray = discriminator(img_cartoon_gray)
+            label_cartoon_blur_gray = discriminator(img_cartoon_blur_gray)
             
-            loss_generated_disc = criterion_disc(label_gen, torch.zeros_like(label_gen))
-            loss_cartoon_disc = criterion_disc(label_cartoon, torch.ones_like(label_cartoon))
-            loss_blur_disc = criterion_disc(label_cartoon_blur, torch.zeros_like(label_cartoon_blur))
-            loss_disc = loss_generated_disc + loss_cartoon_disc + loss_blur_disc
+            loss_cartoon_disc = criterion_mse(label_cartoon, torch.ones_like(label_cartoon))
+            loss_generated_disc = criterion_mse(label_gen, torch.zeros_like(label_gen))
+            loss_gray_disc = criterion_mse(label_cartoon_gray, torch.zeros_like(label_cartoon_gray))
+            loss_blur_disc = criterion_mse(label_cartoon_blur_gray, torch.zeros_like(label_cartoon_blur_gray))
+            loss_disc = W_ADV * loss_cartoon_disc + loss_generated_disc + gray_disc + 0.1 * loss_blur_disc
 
             loss_disc.backward()
             optimizer_disc.step()
@@ -108,22 +113,30 @@ def train(load_model):
             # Generator loss and update
             optimizer_gen.zero_grad()
             gen_photo = generator(img_photo)
-
-            x_features = feature_extractor((img_photo + 1) / 2).detach()
-            Gx_features = feature_extractor((gen_photo + 1) / 2)
-
-            loss_con = criterion_gen(Gx_features, x_features) * 10
             label_gen = discriminator(gen_photo)
-            loss_generated_gen = criterion_disc(label_gen, torch.ones_like(label_gen))
-            loss_gen = loss_generated_gen + loss_con
+
+            feature_photo = feature_extractor((img_photo + 1) / 2).detach()
+            feature_gen = feature_extractor((gen_photo + 1) / 2)
+            gram_photo = gram_matrix(feature_photo).detach()
+            gram_gen = gram_matrix(feature_gen)
+
+            loss_adv_gen = criterion_mse(gen_photo, torch.ones_like(gen_photo))
+            loss_con = criterion_mae(feature_gen, feature_photo)
+            loss_gram = criterion_mae(gram_gen, gram_photo)
+
+            y_photo = color_y(img_photo)
+            y_gen = color_y(gen_photo)
+            loss_color = criterion_mae(y_gen, y_photo) + criterion_huber(color_u(gen_photo, y_gen), color_u(img_photo, y_photo)) + criterion_huber(color_v(gen_photo, y_gen), color_v(img_photo, y_photo))
+   
+            loss_gen = W_ADV * loss_adv_gen + W_CON * loss_con + W_GRA * loss_gram + W_COL * loss_color
 
             loss_gen.backward()
             optimizer_gen.step()
             optimizer_gen.zero_grad()
 
             # Loss display
-            total_loss_gen += loss_generated_gen.item()
-            total_loss_con += loss_con.item()
+            total_loss_gen += loss_adv_gen.item()
+            total_loss_con += loss_con.item() + loss_gram.item() + loss_color.item()
             total_loss_disc += loss_disc.item()
             pbar.set_postfix_str('G_GAN: {}, G_Content: {}, D: {}'.format(
                 np.around(total_loss_gen / (idx + 1), 4),
@@ -136,7 +149,7 @@ def train(load_model):
             'generator_state_dict': generator.state_dict(),
             'discriminator_state_dict': discriminator.state_dict(),
             'epoch': epoch,
-        }, './model/cartoongan')
+        }, './model/animegan')
 
 if __name__ == '__main__':
     train()
