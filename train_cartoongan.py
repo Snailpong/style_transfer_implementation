@@ -23,7 +23,7 @@ BATCH_SIZE = 8
 def train(load_model):
     device = init_device_seed(1234)
 
-    dataset = CartoonGANDataset('./data/cartoon_dataset', ['photo', 'cartoon', 'cartoon_smoothed'])
+    dataset = CartoonGANDataset('./data/cartoon_dataset', ['photo', 'cartoon', 'cartoon_smoothed'], False)
     dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
 
     os.makedirs('./model', exist_ok=True)

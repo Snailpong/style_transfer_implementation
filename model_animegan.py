@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 import torchvision
+import torch.nn.functional as F
 
 
 class ConvBlock(nn.Module):
@@ -47,14 +48,11 @@ class InvertedResidualBlock(nn.Module):
 class DownConv(nn.Module):
     def __init__(self, channel_input, channel_output):
         super(DownConv, self).__init__()
-        self.dsconv = DSConv(channel_input, channel_output, 2)
-        self.resize = nn.Sequential(
-            nn.Upsample(scale_factor=0.5, mode='bilinear'),
-            DSConv(channel_input, channel_output, 1)
-        )
-
+        self.dsconv1 = DSConv(channel_input, channel_output, 1)
+        self.dsconv2 = DSConv(channel_input, channel_output, 2)
+        
     def forward(self, x):
-        return self.dsconv(x) + self.resize(x)
+        return self.dsconv1(F.interpolate(x, scale_factor=0.5, mode='bilinear', align_corners=False, recompute_scale_factor=False)) + self.dsconv2(x)
 
 
 class UpConv(nn.Module):

@@ -32,21 +32,25 @@ class TypesDataset(DataLoader):
 
 
 class CartoonGANDataset(TypesDataset):
-    def __init__(self, dataset_dir, dirs):
+    def __init__(self, dataset_dir, dirs, is_crop):
         super().__init__(dataset_dir, dirs)
         self.train_lists_c = os.listdir(f'{dataset_dir}/{dirs[2]}')
-        self.resize = transforms.Compose([
-            transforms.RandomCrop((768, 768), pad_if_needed=True),
-            transforms.RandomHorizontalFlip(),
-            transforms.Resize((256, 256))
-            ])
         self.to_tensor = transforms.Compose([
             transforms.ToTensor(),
             transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))
         ])
-        self.transform = transforms.Compose([
-            self.resize, self.to_tensor
-        ])
+        if is_crop:
+            self.resize = transforms.Compose([
+                transforms.RandomCrop((768, 768), pad_if_needed=True),
+                transforms.RandomHorizontalFlip(),
+                transforms.Resize((256, 256))
+                ])
+            
+            self.transform = transforms.Compose([
+                self.resize, self.to_tensor
+            ])
+        else:
+            self.transform = self.to_tensor
 
     def __getitem__(self, index):
         photo = self.transform(Image.open(f'{self.dataset_dir}/{self.dirs[0]}/{self.train_lists_a[index]}'))
@@ -61,13 +65,9 @@ class CartoonGANDataset(TypesDataset):
 
 
 class AnimeGANDataset(CartoonGANDataset):
-    def __init__(self, dataset_dir, dirs):
-        super().__init__(dataset_dir, dirs)
-        self.gray_to_tensor = transforms.Compose([
-            self.resize, 
-            transforms.Grayscale(num_output_channels=3),
-            self.to_tensor
-        ])
+    def __init__(self, dataset_dir, dirs, is_crop):
+        super().__init__(dataset_dir, dirs, is_crop)
+        self.gray = transforms.Grayscale(num_output_channels=3)
 
     def __getitem__(self, index):
         photo = self.transform(Image.open(f'{self.dataset_dir}/{self.dirs[0]}/{self.train_lists_a[index]}'))
@@ -75,12 +75,12 @@ class AnimeGANDataset(CartoonGANDataset):
         indexb = random.randint(0, len(self.train_lists_b) - 1)
         indexc = random.randint(0, len(self.train_lists_c) - 1)
 
-        cartoon_raw = self.resize(Image.open(f'{self.dataset_dir}/{self.dirs[1]}/{self.train_lists_b[indexb]}'))
-        cartoon_blur_raw = self.resize(Image.open(f'{self.dataset_dir}/{self.dirs[2]}/{self.train_lists_c[indexc]}'))
+        cartoon_raw = Image.open(f'{self.dataset_dir}/{self.dirs[1]}/{self.train_lists_b[indexb]}')
+        cartoon_blur_raw = Image.open(f'{self.dataset_dir}/{self.dirs[2]}/{self.train_lists_c[indexc]}')
 
-        cartoon = self.to_tensor(cartoon_raw)
-        cartoon_blur = self.to_tensor(cartoon_blur_raw)
-        cartoon_gray = self.gray_to_tensor(cartoon_raw)
-        cartoon_blur_gray = self.gray_to_tensor(cartoon_blur_raw)
+        cartoon = self.transform(cartoon_raw)
+        cartoon_blur = self.transform(cartoon_blur_raw)
+        cartoon_gray = self.transform(self.gray(cartoon_raw))
+        cartoon_blur_gray = self.transform(self.gray(cartoon_blur_raw))
 
         return photo, [cartoon, cartoon_blur, cartoon_gray, cartoon_blur_gray]

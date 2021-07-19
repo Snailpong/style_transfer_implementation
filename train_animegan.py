@@ -24,14 +24,12 @@ W_CON = 1.5
 W_GRA = 3
 W_COL = 10
 
-
-
 @click.command()
 @click.option('--load_model', type=click.BOOL, default=False)
 def train(load_model):
     device = init_device_seed(1234)
 
-    dataset = AnimeGANDataset('./data/cartoon_dataset', ['photo', 'cartoon', 'cartoon_smoothed'])
+    dataset = AnimeGANDataset('./data/cartoon_dataset', ['photo', 'cartoon', 'cartoon_smoothed'], False)
     dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
 
     os.makedirs('./model', exist_ok=True)
@@ -76,7 +74,7 @@ def train(load_model):
             img_cartoon_blur_gray = images[1][3].to(device, dtype=torch.float32)
 
             # Initializaiton phase
-            if epoch <= 3:
+            if epoch <= 1:
                 optimizer_gen.zero_grad()
 
                 gen_photo = generator(img_photo)
@@ -105,7 +103,7 @@ def train(load_model):
             loss_generated_disc = criterion_mse(label_gen, torch.zeros_like(label_gen))
             loss_gray_disc = criterion_mse(label_cartoon_gray, torch.zeros_like(label_cartoon_gray))
             loss_blur_disc = criterion_mse(label_cartoon_blur_gray, torch.zeros_like(label_cartoon_blur_gray))
-            loss_disc = W_ADV * loss_cartoon_disc + loss_generated_disc + gray_disc + 0.1 * loss_blur_disc
+            loss_disc = W_ADV * loss_cartoon_disc + loss_generated_disc + loss_gray_disc + 0.1 * loss_blur_disc
 
             loss_disc.backward()
             optimizer_disc.step()
@@ -117,12 +115,13 @@ def train(load_model):
 
             feature_photo = feature_extractor((img_photo + 1) / 2).detach()
             feature_gen = feature_extractor((gen_photo + 1) / 2)
-            gram_photo = gram_matrix(feature_photo).detach()
+            feature_gray = feature_extractor((img_cartoon_gray + 1) / 2)
             gram_gen = gram_matrix(feature_gen)
+            gram_gray = gram_matrix(feature_gray).detach()
 
-            loss_adv_gen = criterion_mse(gen_photo, torch.ones_like(gen_photo))
+            loss_adv_gen = criterion_mse(label_gen, torch.ones_like(label_gen))
             loss_con = criterion_mae(feature_gen, feature_photo)
-            loss_gram = criterion_mae(gram_gen, gram_photo)
+            loss_gram = criterion_mae(gram_gen, gram_gray)
 
             y_photo = color_y(img_photo)
             y_gen = color_y(gen_photo)
@@ -135,8 +134,8 @@ def train(load_model):
             optimizer_gen.zero_grad()
 
             # Loss display
-            total_loss_gen += loss_adv_gen.item()
-            total_loss_con += loss_con.item() + loss_gram.item() + loss_color.item()
+            total_loss_gen += W_ADV * loss_adv_gen.item()
+            total_loss_con += W_CON * loss_con.item() + W_GRA * loss_gram.item() + W_COL * loss_color.item()
             total_loss_disc += loss_disc.item()
             pbar.set_postfix_str('G_GAN: {}, G_Content: {}, D: {}'.format(
                 np.around(total_loss_gen / (idx + 1), 4),
