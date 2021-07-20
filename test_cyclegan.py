@@ -22,8 +22,9 @@ from model_cyclegan import CycleGANGenerator, CycleGANDiscriminator
 @click.option('--dataset_type', default='summer2winter_yosemite')
 @click.option('--image_path', default='./data/summer2winter_yosemite/testA')
 @click.option('--model_type', default='x2y')
-def test(dataset_type, image_path, model_type):
-    device = init_device_seed(1234)
+@click.option('--cuda_visible', default='0')
+def test(dataset_type, image_path, model_type, is_crop, cuda_visible):
+    device = init_device_seed(1234, cuda_visible)
 
     os.makedirs('./result', exist_ok=True)
 

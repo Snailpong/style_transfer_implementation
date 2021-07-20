@@ -19,15 +19,17 @@ from model_animegan import AnimeGANGenerator
 
 
 @click.command()
-@click.option('--image_path', default='./result/pic')
+@click.option('--image_path', default='./data/cartoon_dataset/val')
 @click.option('--model_name', default='cartoongan')
-def test(image_path, model_name):
-    device = init_device_seed(1234)
+@click.option('--is_crop', type=bool, default=False)
+@click.option('--cuda_visible', default='0')
+def test(image_path, model_name, is_crop, cuda_visible):
+    device = init_device_seed(1234, cuda_visible)
     os.makedirs('./result', exist_ok=True)
 
     if model_name == 'cartoongan':
         checkpoint = torch.load('./model/cartoongan', map_location=device)
-        generator = AnimeGANGenerator().to(device)
+        generator = CartoonGANGenerator().to(device)
     else:
         checkpoint = torch.load('./model/animegan', map_location=device)
         generator = AnimeGANGenerator().to(device)
@@ -67,8 +69,11 @@ def test(image_path, model_name):
             transforms.Resize((256, 256))
         ])
 
-        image = transform(image)
-        image.save('{}/{}_orig.jpg'.format(output_dir,file_name))
+        if is_crop:
+            image = transform(image)
+            image.save('{}/{}_orig.jpg'.format(output_dir,file_name))
+        else:
+            image = image.crop((0, 0, image.size[0] - image.size[0] % 4, image.size[1] - image.size[1] % 4))
 
         image = to_tensor(image)
         image = torch.unsqueeze(image, 0).to(device)

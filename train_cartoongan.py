@@ -19,9 +19,10 @@ from model_cartoongan import CartoonGANGenerator, CartoonGANDiscriminator, VGG19
 BATCH_SIZE = 8
 
 @click.command()
-@click.option('--load_model', type=click.BOOL, default=False)
-def train(load_model):
-    device = init_device_seed(1234)
+@click.option('--load_model', type=bool, default=False)
+@click.option('--cuda_visible', default='0')
+def train(load_model, cuda_visible):
+    device = init_device_seed(1234, cuda_visible)
 
     dataset = CartoonGANDataset('./data/cartoon_dataset', ['photo', 'cartoon', 'cartoon_smoothed'], False)
     dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)

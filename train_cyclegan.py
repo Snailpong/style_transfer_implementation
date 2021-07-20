@@ -19,9 +19,10 @@ BATCH_SIZE = 1
 
 @click.command()
 @click.option('--dataset_type', default='summer2winter_yosemite')
-@click.option('--load_model', type=click.BOOL, default=False)
-def train(dataset_type, load_model):
-    device = init_device_seed(1234)
+@click.option('--load_model', type=bool, default=False)
+@click.option('--cuda_visible', default='0')
+def train(dataset_type, load_model, cuda_visible):
+    device = init_device_seed(1234, cuda_visible)
 
     dataset = TypesDataset('./data/' + dataset_type, ['trainA', 'trainB'])
     dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)

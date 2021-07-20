@@ -5,8 +5,8 @@ import cv2
 import os
 
 
-def init_device_seed(seed):
-    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+def init_device_seed(seed, cuda_visible):
+    os.environ['CUDA_VISIBLE_DEVICES'] = cuda_visible
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print('Device: {}'.format(device))
 
