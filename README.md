@@ -2,14 +2,14 @@
 PyTorch implementation of style transfer (landscape cartoonization) models
 
 ## Models
----
+
 - [CycleGAN](https://arxiv.org/pdf/1703.10593.pdf)
 - [CartoonGAN](https://openaccess.thecvf.com/content_cvpr_2018/papers/Chen_CartoonGAN_Generative_Adversarial_CVPR_2018_paper.pdf)
 - [AnimeGAN](https://link.springer.com/chapter/10.1007/978-981-15-5577-0_18)
 
 
 ## Dependencies
----
+
 - Pytorch
 - torchvision
 - numpy
@@ -20,7 +20,7 @@ PyTorch implementation of style transfer (landscape cartoonization) models
 
 
 ## Usage
----
+
 1. Download dataset
 - CycleGAN: [Link](https://people.eecs.berkeley.edu/~taesung_park/CycleGAN/datasets/)
 - CartoonGAN, AnimeGAN: [Link](https://github.com/TachibanaYoshino/AnimeGAN/releases/tag/dataset-1)
@@ -78,9 +78,9 @@ e.g.
 
 
 ## Results
----
 
-We trained the models with Shinkai style
+- We trained the models with Shinkai style
+
 <table style="text-align: center">
 <tr><td>Photo</td><td>CartoonGAN</td><td>AnimeGAN</td></tr>
 <tr>
@@ -127,7 +127,7 @@ We trained the models with Shinkai style
 </table>
 
 ## Observation & Discussion
----
+
 - AnimeGAN kept the original texture and color than CartoonGAN.
 - CartoonGAN made good use of the unique black edge of cartoons. 
 - CartoonGAN and AnimeGAN were close to the texture of TVD/Movie, respectively.
@@ -138,7 +138,7 @@ We trained the models with Shinkai style
 
 
 ## Code Reference
----
+
 - <https://github.com/TobiasSunderdiek/cartoon-gan>
 - <https://github.com/mnmjh1215/diya-CartoonGAN>
 - <https://github.com/TachibanaYoshino/AnimeGAN>
